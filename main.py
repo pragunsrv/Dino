@@ -26,6 +26,7 @@ dino_x, dino_y = 50, HEIGHT - dino_height - 10
 dino_vel = 10
 jumping = False
 jump_count = 10
+invincible = False
 
 # Dino Animation
 dino_images = [pygame.Surface((dino_width, dino_height)) for _ in range(2)]
@@ -37,15 +38,16 @@ dino_animation_speed = 10
 # Obstacle settings
 min_obs_width, min_obs_height = 30, 30
 max_obs_width, max_obs_height = 70, 70
-num_obstacles = 5
+num_obstacles = 6
 obstacles = []
 for i in range(num_obstacles):
     obs_type = random.choice(['type1', 'type2', 'type3'])
     obs_width = random.randint(min_obs_width, max_obs_width)
     obs_height = random.randint(min_obs_height, max_obs_height)
     x_pos = WIDTH + i * 300
+    pattern_type = random.choice(['single', 'stacked', 'grouped'])
     obstacles.append({'x': x_pos, 'y': HEIGHT - obs_height - 10, 'type': obs_type, 'behavior': random.choice(['normal', 'fast', 'slow']),
-                      'width': obs_width, 'height': obs_height})
+                      'width': obs_width, 'height': obs_height, 'pattern': pattern_type})
 
 obs_vel = 15
 obs_speed_increase = 2
@@ -59,9 +61,7 @@ power_up_timer = pygame.time.get_ticks()
 power_up_active = False
 power_up_duration = 5000  # Power-up duration in milliseconds
 power_up_start_time = 0
-
-# New power-up type
-power_up_types = ['size_reduction', 'slow_obstacles']
+power_up_types = ['size_reduction', 'slow_obstacles', 'invincibility']
 
 # Background settings
 bg1_x, bg2_x = 0, WIDTH
@@ -104,9 +104,11 @@ def draw_level(level):
     level_text = font.render(f"Level: {level}", True, BLACK)
     screen.blit(level_text, (WIDTH - 100, 10))
 
-def draw_power_up_status(power_up_active, power_up_type):
-    status_text = font.render(f"Power-Up Active: {power_up_type}" if power_up_active else "No Power-Up", True, BLACK)
+def draw_power_up_status(power_up_active, power_up_type, time_remaining):
+    status_text = font.render(f"Power-Up: {power_up_type}" if power_up_active else "No Power-Up", True, BLACK)
+    timer_text = font.render(f"Time Left: {time_remaining // 1000}s" if power_up_active else "", True, BLACK)
     screen.blit(status_text, (WIDTH // 2 - 150, 10))
+    screen.blit(timer_text, (WIDTH // 2 - 150, 40))
 
 def game_over():
     screen.fill(WHITE)
@@ -120,7 +122,7 @@ def game_over():
     pygame.time.wait(2000)
 
 def main():
-    global dino_y, jumping, jump_count, obstacles, score, obs_vel, power_ups, power_up_timer, power_up_active, power_up_start_time, bg1_x, bg2_x, level, dino_frame
+    global dino_y, jumping, jump_count, obstacles, score, obs_vel, power_ups, power_up_timer, power_up_active, power_up_start_time, bg1_x, bg2_x, level, dino_frame, invincible
     clock = pygame.time.Clock()  # Initialize the clock
     run = True
     while run:
@@ -162,6 +164,7 @@ def main():
                 obs['width'] = random.randint(min_obs_width, max_obs_width)
                 obs['height'] = random.randint(min_obs_height, max_obs_height)
                 obs['behavior'] = random.choice(['normal', 'fast', 'slow'])
+                obs['pattern'] = random.choice(['single', 'stacked', 'grouped'])
                 score += 1
                 if score % level_up_score == 0:
                     level += 1
@@ -171,7 +174,7 @@ def main():
         dino_rect = pygame.Rect(dino_x, dino_y, dino_width, dino_height)
         for obs in obstacles:
             obs_rect = pygame.Rect(obs['x'], obs['y'], obs['width'], obs['height'])
-            if dino_rect.colliderect(obs_rect):
+            if dino_rect.colliderect(obs_rect) and not invincible:
                 game_over()
                 return
 
@@ -187,6 +190,7 @@ def main():
             power_up_active = False
             obs_vel = 15
             power_ups = []
+            invincible = False
 
         new_power_ups = []
         for (x, y, p_type) in power_ups:
@@ -204,10 +208,15 @@ def main():
                         obs['height'] = int(obs['height'] * 0.8)
                 elif p_type == 'slow_obstacles':
                     obs_vel *= 0.5
+                elif p_type == 'invincibility':
+                    invincible = True
                 power_ups = []
             else:
                 new_power_ups.append((x, y, p_type))
         power_ups = new_power_ups
+
+        # Calculate time remaining for power-up
+        time_remaining = max(0, power_up_duration - (current_time - power_up_start_time))
 
         draw_background()
         draw_dino(dino_x, dino_y, dino_frame)
@@ -215,7 +224,7 @@ def main():
         draw_power_ups([(x, y) for (x, y, _) in power_ups])
         draw_score(score)
         draw_level(level)
-        draw_power_up_status(power_up_active, [p_type for (_, _, p_type) in power_ups][0] if power_up_active else "None")
+        draw_power_up_status(power_up_active, [p_type for (_, _, p_type) in power_ups][0] if power_up_active else "None", time_remaining)
         pygame.display.update()
 
     pygame.quit()
