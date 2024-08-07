@@ -37,14 +37,14 @@ dino_animation_speed = 10
 # Obstacle settings
 min_obs_width, min_obs_height = 30, 30
 max_obs_width, max_obs_height = 70, 70
-num_obstacles = 4
+num_obstacles = 5
 obstacles = []
 for i in range(num_obstacles):
     obs_type = random.choice(['type1', 'type2', 'type3'])
     obs_width = random.randint(min_obs_width, max_obs_width)
     obs_height = random.randint(min_obs_height, max_obs_height)
     x_pos = WIDTH + i * 300
-    obstacles.append({'x': x_pos, 'y': HEIGHT - obs_height - 10, 'type': obs_type, 'behavior': random.choice(['normal', 'fast']),
+    obstacles.append({'x': x_pos, 'y': HEIGHT - obs_height - 10, 'type': obs_type, 'behavior': random.choice(['normal', 'fast', 'slow']),
                       'width': obs_width, 'height': obs_height})
 
 obs_vel = 15
@@ -60,9 +60,11 @@ power_up_active = False
 power_up_duration = 5000  # Power-up duration in milliseconds
 power_up_start_time = 0
 
+# New power-up type
+power_up_types = ['size_reduction', 'slow_obstacles']
+
 # Background settings
 bg1_x, bg2_x = 0, WIDTH
-bg3_x, bg4_x = 0, WIDTH
 bg_speed = 5
 
 # Score and Level
@@ -83,25 +85,16 @@ def draw_power_ups(power_up_list):
         pygame.draw.rect(screen, YELLOW, (x, y, power_up_width, power_up_height))
 
 def draw_background():
-    global bg1_x, bg2_x, bg3_x, bg4_x
-    bg_color = (255 - min(score * 2, 255), 200, 200)  # Change background color based on score
-    screen.fill(bg_color)
+    global bg1_x, bg2_x
+    screen.fill(WHITE)
     pygame.draw.rect(screen, GREEN, (bg1_x, 0, WIDTH, HEIGHT))
     pygame.draw.rect(screen, GREEN, (bg2_x, 0, WIDTH, HEIGHT))
-    pygame.draw.rect(screen, (200, 255, 200), (bg3_x, 0, WIDTH, HEIGHT))
-    pygame.draw.rect(screen, (200, 255, 200), (bg4_x, 0, WIDTH, HEIGHT))
     bg1_x -= bg_speed
     bg2_x -= bg_speed
-    bg3_x -= bg_speed * 0.5
-    bg4_x -= bg_speed * 0.5
     if bg1_x <= -WIDTH:
         bg1_x = WIDTH
     if bg2_x <= -WIDTH:
         bg2_x = WIDTH
-    if bg3_x <= -WIDTH:
-        bg3_x = WIDTH
-    if bg4_x <= -WIDTH:
-        bg4_x = WIDTH
 
 def draw_score(score):
     score_text = font.render(f"Score: {score}", True, BLACK)
@@ -111,9 +104,9 @@ def draw_level(level):
     level_text = font.render(f"Level: {level}", True, BLACK)
     screen.blit(level_text, (WIDTH - 100, 10))
 
-def draw_power_up_status(power_up_active):
-    status_text = font.render("Power-Up Active!" if power_up_active else "No Power-Up", True, BLACK)
-    screen.blit(status_text, (WIDTH // 2 - 100, 10))
+def draw_power_up_status(power_up_active, power_up_type):
+    status_text = font.render(f"Power-Up Active: {power_up_type}" if power_up_active else "No Power-Up", True, BLACK)
+    screen.blit(status_text, (WIDTH // 2 - 150, 10))
 
 def game_over():
     screen.fill(WHITE)
@@ -127,7 +120,7 @@ def game_over():
     pygame.time.wait(2000)
 
 def main():
-    global dino_y, jumping, jump_count, obstacles, score, obs_vel, power_ups, power_up_timer, power_up_active, power_up_start_time, bg1_x, bg2_x, bg3_x, bg4_x, level, dino_frame
+    global dino_y, jumping, jump_count, obstacles, score, obs_vel, power_ups, power_up_timer, power_up_active, power_up_start_time, bg1_x, bg2_x, level, dino_frame
     clock = pygame.time.Clock()  # Initialize the clock
     run = True
     while run:
@@ -159,6 +152,8 @@ def main():
         for obs in obstacles:
             if obs['behavior'] == 'fast':
                 obs['x'] -= obs_vel * 1.5
+            elif obs['behavior'] == 'slow':
+                obs['x'] -= obs_vel * 0.5
             else:
                 obs['x'] -= obs_vel
             if obs['x'] < 0:
@@ -166,7 +161,7 @@ def main():
                 obs['type'] = random.choice(['type1', 'type2', 'type3'])
                 obs['width'] = random.randint(min_obs_width, max_obs_width)
                 obs['height'] = random.randint(min_obs_height, max_obs_height)
-                obs['behavior'] = random.choice(['normal', 'fast'])
+                obs['behavior'] = random.choice(['normal', 'fast', 'slow'])
                 score += 1
                 if score % level_up_score == 0:
                     level += 1
@@ -184,7 +179,8 @@ def main():
         if not power_up_active and current_time - power_up_timer > power_up_interval:
             power_up_x = WIDTH
             power_up_y = HEIGHT - power_up_height - 10
-            power_ups.append((power_up_x, power_up_y))
+            power_up_type = random.choice(power_up_types)
+            power_ups.append((power_up_x, power_up_y, power_up_type))
             power_up_timer = current_time
 
         if power_up_active and current_time - power_up_start_time > power_up_duration:
@@ -193,7 +189,7 @@ def main():
             power_ups = []
 
         new_power_ups = []
-        for (x, y) in power_ups:
+        for (x, y, p_type) in power_ups:
             x -= obs_vel
             if x < 0:
                 continue
@@ -202,19 +198,24 @@ def main():
             if dino_rect.colliderect(power_up_rect):
                 power_up_active = True
                 power_up_start_time = current_time
-                obs_vel = 5
+                if p_type == 'size_reduction':
+                    for obs in obstacles:
+                        obs['width'] = int(obs['width'] * 0.8)
+                        obs['height'] = int(obs['height'] * 0.8)
+                elif p_type == 'slow_obstacles':
+                    obs_vel *= 0.5
                 power_ups = []
             else:
-                new_power_ups.append((x, y))
+                new_power_ups.append((x, y, p_type))
         power_ups = new_power_ups
 
         draw_background()
         draw_dino(dino_x, dino_y, dino_frame)
         draw_obstacles(obstacles)
-        draw_power_ups(power_ups)
+        draw_power_ups([(x, y) for (x, y, _) in power_ups])
         draw_score(score)
         draw_level(level)
-        draw_power_up_status(power_up_active)
+        draw_power_up_status(power_up_active, [p_type for (_, _, p_type) in power_ups][0] if power_up_active else "None")
         pygame.display.update()
 
     pygame.quit()
