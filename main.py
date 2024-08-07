@@ -38,16 +38,16 @@ dino_animation_speed = 10
 # Obstacle settings
 min_obs_width, min_obs_height = 30, 30
 max_obs_width, max_obs_height = 70, 70
-num_obstacles = 6
+num_obstacles = 8
 obstacles = []
 for i in range(num_obstacles):
-    obs_type = random.choice(['type1', 'type2', 'type3'])
+    obs_type = random.choice(['type1', 'type2', 'type3', 'moving'])
     obs_width = random.randint(min_obs_width, max_obs_width)
     obs_height = random.randint(min_obs_height, max_obs_height)
     x_pos = WIDTH + i * 300
     pattern_type = random.choice(['single', 'stacked', 'grouped'])
     obstacles.append({'x': x_pos, 'y': HEIGHT - obs_height - 10, 'type': obs_type, 'behavior': random.choice(['normal', 'fast', 'slow']),
-                      'width': obs_width, 'height': obs_height, 'pattern': pattern_type})
+                      'width': obs_width, 'height': obs_height, 'pattern': pattern_type, 'direction': random.choice(['left', 'right']) if obs_type == 'moving' else None})
 
 obs_vel = 15
 obs_speed_increase = 2
@@ -77,7 +77,7 @@ def draw_dino(x, y, frame):
 
 def draw_obstacles(obs_list):
     for obs in obs_list:
-        color = GRAY if obs['type'] == 'type1' else BLUE if obs['type'] == 'type2' else ORANGE
+        color = GRAY if obs['type'] == 'type1' else BLUE if obs['type'] == 'type2' else ORANGE if obs['type'] == 'type3' else PURPLE
         pygame.draw.rect(screen, color, (obs['x'], obs['y'], obs['width'], obs['height']))
 
 def draw_power_ups(power_up_list):
@@ -152,19 +152,30 @@ def main():
                 jump_count = 10
 
         for obs in obstacles:
-            if obs['behavior'] == 'fast':
-                obs['x'] -= obs_vel * 1.5
-            elif obs['behavior'] == 'slow':
-                obs['x'] -= obs_vel * 0.5
+            if obs['type'] == 'moving':
+                if obs['direction'] == 'left':
+                    obs['x'] -= obs_vel * 0.5
+                    if obs['x'] < 0:
+                        obs['direction'] = 'right'
+                elif obs['direction'] == 'right':
+                    obs['x'] += obs_vel * 0.5
+                    if obs['x'] > WIDTH:
+                        obs['direction'] = 'left'
             else:
-                obs['x'] -= obs_vel
+                if obs['behavior'] == 'fast':
+                    obs['x'] -= obs_vel * 1.5
+                elif obs['behavior'] == 'slow':
+                    obs['x'] -= obs_vel * 0.5
+                else:
+                    obs['x'] -= obs_vel
             if obs['x'] < 0:
                 obs['x'] = WIDTH
-                obs['type'] = random.choice(['type1', 'type2', 'type3'])
+                obs['type'] = random.choice(['type1', 'type2', 'type3', 'moving'])
                 obs['width'] = random.randint(min_obs_width, max_obs_width)
                 obs['height'] = random.randint(min_obs_height, max_obs_height)
                 obs['behavior'] = random.choice(['normal', 'fast', 'slow'])
                 obs['pattern'] = random.choice(['single', 'stacked', 'grouped'])
+                obs['direction'] = random.choice(['left', 'right']) if obs['type'] == 'moving' else None
                 score += 1
                 if score % level_up_score == 0:
                     level += 1
