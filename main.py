@@ -16,6 +16,7 @@ GRAY = (128, 128, 128)
 RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
+YELLOW = (255, 255, 0)
 
 # Dino settings
 dino_width, dino_height = 50, 50
@@ -36,9 +37,17 @@ for i in range(num_obstacles):
 obs_vel = 15
 obs_speed_increase = 1
 
+# Power-up settings
+power_up_width, power_up_height = 30, 30
+power_ups = []
+power_up_interval = 5000  # Power-up spawn interval in milliseconds
+power_up_timer = pygame.time.get_ticks()
+power_up_active = False
+power_up_duration = 5000  # Power-up duration in milliseconds
+power_up_start_time = 0
+
 # Background settings
-bg_x1 = 0
-bg_x2 = WIDTH
+bg1_x, bg2_x = 0, WIDTH
 bg_speed = 5
 
 # Score
@@ -53,17 +62,21 @@ def draw_obstacles(obs_list):
         color = GRAY if obs['type'] == 'type1' else BLUE
         pygame.draw.rect(screen, color, (obs['x'], obs['y'], obs_width, obs_height))
 
+def draw_power_ups(power_up_list):
+    for (x, y) in power_up_list:
+        pygame.draw.rect(screen, YELLOW, (x, y, power_up_width, power_up_height))
+
 def draw_background():
-    global bg_x1, bg_x2
+    global bg1_x, bg2_x
     screen.fill(WHITE)
-    pygame.draw.rect(screen, GREEN, (bg_x1, 0, WIDTH, HEIGHT))
-    pygame.draw.rect(screen, GREEN, (bg_x2, 0, WIDTH, HEIGHT))
-    bg_x1 -= bg_speed
-    bg_x2 -= bg_speed
-    if bg_x1 <= -WIDTH:
-        bg_x1 = WIDTH
-    if bg_x2 <= -WIDTH:
-        bg_x2 = WIDTH
+    pygame.draw.rect(screen, GREEN, (bg1_x, 0, WIDTH, HEIGHT))
+    pygame.draw.rect(screen, GREEN, (bg2_x, 0, WIDTH, HEIGHT))
+    bg1_x -= bg_speed
+    bg2_x -= bg_speed
+    if bg1_x <= -WIDTH:
+        bg1_x = WIDTH
+    if bg2_x <= -WIDTH:
+        bg2_x = WIDTH
 
 def draw_score(score):
     score_text = font.render(f"Score: {score}", True, BLACK)
@@ -79,10 +92,12 @@ def game_over():
     pygame.time.wait(2000)
 
 def main():
-    global dino_y, jumping, jump_count, obstacles, score, obs_vel, bg_x1, bg_x2
+    global dino_y, jumping, jump_count, obstacles, score, obs_vel, power_ups, power_up_timer, power_up_active, power_up_start_time, bg1_x, bg2_x
     run = True
     while run:
         clock.tick(FPS)
+        current_time = pygame.time.get_ticks()
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 run = False
@@ -111,7 +126,7 @@ def main():
                 if score % 5 == 0:
                     obs_vel += obs_speed_increase
 
-        # Check for collision
+        # Check for collision with obstacles
         dino_rect = pygame.Rect(dino_x, dino_y, dino_width, dino_height)
         for obs in obstacles:
             obs_rect = pygame.Rect(obs['x'], obs['y'], obs_width, obs_height)
@@ -119,9 +134,38 @@ def main():
                 game_over()
                 return
 
+        # Handle power-ups
+        if not power_up_active and current_time - power_up_timer > power_up_interval:
+            power_up_x = WIDTH
+            power_up_y = HEIGHT - power_up_height - 10
+            power_ups.append((power_up_x, power_up_y))
+            power_up_timer = current_time
+
+        if power_up_active and current_time - power_up_start_time > power_up_duration:
+            power_up_active = False
+            obs_vel = 15
+            power_ups = []
+
+        new_power_ups = []
+        for (x, y) in power_ups:
+            x -= obs_vel
+            if x < 0:
+                continue
+            dino_rect = pygame.Rect(dino_x, dino_y, dino_width, dino_height)
+            power_up_rect = pygame.Rect(x, y, power_up_width, power_up_height)
+            if dino_rect.colliderect(power_up_rect):
+                power_up_active = True
+                power_up_start_time = current_time
+                obs_vel = 5
+                power_ups = []
+            else:
+                new_power_ups.append((x, y))
+        power_ups = new_power_ups
+
         draw_background()
         draw_dino(dino_x, dino_y)
         draw_obstacles(obstacles)
+        draw_power_ups(power_ups)
         draw_score(score)
         pygame.display.update()
 
