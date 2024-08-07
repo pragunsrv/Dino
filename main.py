@@ -44,7 +44,7 @@ max_obs_width, max_obs_height = 70, 70
 num_obstacles = 12
 obstacles = []
 for i in range(num_obstacles):
-    obs_type = random.choice(['type1', 'type2', 'type3', 'moving', 'bouncing', 'rotating'])
+    obs_type = random.choice(['type1', 'type2', 'type3', 'moving', 'bouncing', 'rotating', 'disappearing'])
     obs_width = random.randint(min_obs_width, max_obs_width)
     obs_height = random.randint(min_obs_height, max_obs_height)
     x_pos = WIDTH + i * 300
@@ -52,7 +52,8 @@ for i in range(num_obstacles):
     obstacles.append({'x': x_pos, 'y': HEIGHT - obs_height - 10, 'type': obs_type, 'behavior': random.choice(['normal', 'fast', 'slow']),
                       'width': obs_width, 'height': obs_height, 'pattern': pattern_type, 'direction': random.choice(['left', 'right']) if obs_type == 'moving' else None,
                       'bounce_direction': random.choice(['up', 'down']) if obs_type == 'bouncing' else None, 'bounce_count': 0, 
-                      'rotation_angle': 0 if obs_type == 'rotating' else None, 'rotation_speed': random.randint(1, 5) if obs_type == 'rotating' else None})
+                      'rotation_angle': 0 if obs_type == 'rotating' else None, 'rotation_speed': random.randint(1, 5) if obs_type == 'rotating' else None,
+                      'disappear_time': random.randint(1000, 3000) if obs_type == 'disappearing' else None, 'disappear_timer': 0})
 
 obs_vel = 15
 obs_speed_increase = 2
@@ -71,7 +72,11 @@ power_up_types = ['size_reduction', 'slow_obstacles', 'invincibility', 'speed_bo
 
 # Background settings
 bg1_x, bg2_x = 0, WIDTH
-bg_speed = 5
+bg1_speed, bg2_speed = 2, 5
+bg1_image = pygame.Surface((WIDTH, HEIGHT))
+bg2_image = pygame.Surface((WIDTH, HEIGHT))
+bg1_image.fill(GREEN)
+bg2_image.fill(GRAY)
 
 # Score and Level
 score = 0
@@ -97,11 +102,10 @@ def draw_power_ups(power_up_list):
 
 def draw_background():
     global bg1_x, bg2_x
-    screen.fill(WHITE)
-    pygame.draw.rect(screen, GREEN, (bg1_x, 0, WIDTH, HEIGHT))
-    pygame.draw.rect(screen, GREEN, (bg2_x, 0, WIDTH, HEIGHT))
-    bg1_x -= bg_speed
-    bg2_x -= bg_speed
+    screen.blit(bg1_image, (bg1_x, 0))
+    screen.blit(bg2_image, (bg2_x, 0))
+    bg1_x -= bg1_speed
+    bg2_x -= bg2_speed
     if bg1_x <= -WIDTH:
         bg1_x = WIDTH
     if bg2_x <= -WIDTH:
@@ -187,6 +191,13 @@ def main():
                 obs['rotation_angle'] += obs['rotation_speed']
                 if obs['rotation_angle'] >= 6.28:  # Full circle in radians
                     obs['rotation_angle'] = 0
+            elif obs['type'] == 'disappearing':
+                obs['disappear_timer'] += clock.get_time()
+                if obs['disappear_timer'] >= obs['disappear_time']:
+                    obs['disappear_timer'] = 0
+                    obs['disappear_time'] = random.randint(1000, 3000)
+                    obs['width'] = 0 if obs['width'] > 0 else random.randint(min_obs_width, max_obs_width)
+                    obs['height'] = 0 if obs['height'] > 0 else random.randint(min_obs_height, max_obs_height)
             else:
                 if obs['behavior'] == 'fast':
                     obs['x'] -= obs_vel * 1.5
@@ -196,7 +207,7 @@ def main():
                     obs['x'] -= obs_vel
             if obs['x'] < 0:
                 obs['x'] = WIDTH
-                obs['type'] = random.choice(['type1', 'type2', 'type3', 'moving', 'bouncing', 'rotating'])
+                obs['type'] = random.choice(['type1', 'type2', 'type3', 'moving', 'bouncing', 'rotating', 'disappearing'])
                 obs['width'] = random.randint(min_obs_width, max_obs_width)
                 obs['height'] = random.randint(min_obs_height, max_obs_height)
                 obs['behavior'] = random.choice(['normal', 'fast', 'slow'])
@@ -206,6 +217,8 @@ def main():
                 obs['bounce_count'] = 0
                 obs['rotation_angle'] = 0 if obs['type'] == 'rotating' else None
                 obs['rotation_speed'] = random.randint(1, 5) if obs['type'] == 'rotating' else None
+                obs['disappear_time'] = random.randint(1000, 3000) if obs['type'] == 'disappearing' else None
+                obs['disappear_timer'] = 0
                 score += score_multiplier
                 consecutive_obstacles_avoided += 1
                 if consecutive_obstacles_avoided % 5 == 0:
