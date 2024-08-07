@@ -38,16 +38,17 @@ dino_animation_speed = 10
 # Obstacle settings
 min_obs_width, min_obs_height = 30, 30
 max_obs_width, max_obs_height = 70, 70
-num_obstacles = 8
+num_obstacles = 10
 obstacles = []
 for i in range(num_obstacles):
-    obs_type = random.choice(['type1', 'type2', 'type3', 'moving'])
+    obs_type = random.choice(['type1', 'type2', 'type3', 'moving', 'bouncing'])
     obs_width = random.randint(min_obs_width, max_obs_width)
     obs_height = random.randint(min_obs_height, max_obs_height)
     x_pos = WIDTH + i * 300
-    pattern_type = random.choice(['single', 'stacked', 'grouped'])
+    pattern_type = random.choice(['single', 'stacked', 'grouped', 'dynamic'])
     obstacles.append({'x': x_pos, 'y': HEIGHT - obs_height - 10, 'type': obs_type, 'behavior': random.choice(['normal', 'fast', 'slow']),
-                      'width': obs_width, 'height': obs_height, 'pattern': pattern_type, 'direction': random.choice(['left', 'right']) if obs_type == 'moving' else None})
+                      'width': obs_width, 'height': obs_height, 'pattern': pattern_type, 'direction': random.choice(['left', 'right']) if obs_type == 'moving' else None,
+                      'bounce_direction': random.choice(['up', 'down']) if obs_type == 'bouncing' else None, 'bounce_count': 0})
 
 obs_vel = 15
 obs_speed_increase = 2
@@ -71,6 +72,8 @@ bg_speed = 5
 score = 0
 level = 1
 font = pygame.font.Font(None, 36)
+score_multiplier = 1
+consecutive_obstacles_avoided = 0
 
 def draw_dino(x, y, frame):
     screen.blit(dino_images[frame], (x, y))
@@ -97,7 +100,7 @@ def draw_background():
         bg2_x = WIDTH
 
 def draw_score(score):
-    score_text = font.render(f"Score: {score}", True, BLACK)
+    score_text = font.render(f"Score: {score * score_multiplier}", True, BLACK)
     screen.blit(score_text, (10, 10))
 
 def draw_level(level):
@@ -113,7 +116,7 @@ def draw_power_up_status(power_up_active, power_up_type, time_remaining):
 def game_over():
     screen.fill(WHITE)
     game_over_text = font.render("Game Over", True, RED)
-    score_text = font.render(f"Final Score: {score}", True, BLACK)
+    score_text = font.render(f"Final Score: {score * score_multiplier}", True, BLACK)
     level_text = font.render(f"Final Level: {level}", True, BLACK)
     screen.blit(game_over_text, (WIDTH // 2 - 100, HEIGHT // 2 - 40))
     screen.blit(score_text, (WIDTH // 2 - 100, HEIGHT // 2))
@@ -122,7 +125,7 @@ def game_over():
     pygame.time.wait(2000)
 
 def main():
-    global dino_y, jumping, jump_count, obstacles, score, obs_vel, power_ups, power_up_timer, power_up_active, power_up_start_time, bg1_x, bg2_x, level, dino_frame, invincible
+    global dino_y, jumping, jump_count, obstacles, score, obs_vel, power_ups, power_up_timer, power_up_active, power_up_start_time, bg1_x, bg2_x, level, dino_frame, invincible, score_multiplier, consecutive_obstacles_avoided
     clock = pygame.time.Clock()  # Initialize the clock
     run = True
     while run:
@@ -161,6 +164,17 @@ def main():
                     obs['x'] += obs_vel * 0.5
                     if obs['x'] > WIDTH:
                         obs['direction'] = 'left'
+            elif obs['type'] == 'bouncing':
+                if obs['bounce_direction'] == 'up':
+                    obs['y'] -= obs_vel * 0.5
+                    obs['bounce_count'] += 1
+                    if obs['bounce_count'] > 20:
+                        obs['bounce_direction'] = 'down'
+                elif obs['bounce_direction'] == 'down':
+                    obs['y'] += obs_vel * 0.5
+                    obs['bounce_count'] -= 1
+                    if obs['bounce_count'] < 0:
+                        obs['bounce_direction'] = 'up'
             else:
                 if obs['behavior'] == 'fast':
                     obs['x'] -= obs_vel * 1.5
@@ -170,13 +184,18 @@ def main():
                     obs['x'] -= obs_vel
             if obs['x'] < 0:
                 obs['x'] = WIDTH
-                obs['type'] = random.choice(['type1', 'type2', 'type3', 'moving'])
+                obs['type'] = random.choice(['type1', 'type2', 'type3', 'moving', 'bouncing'])
                 obs['width'] = random.randint(min_obs_width, max_obs_width)
                 obs['height'] = random.randint(min_obs_height, max_obs_height)
                 obs['behavior'] = random.choice(['normal', 'fast', 'slow'])
-                obs['pattern'] = random.choice(['single', 'stacked', 'grouped'])
+                obs['pattern'] = random.choice(['single', 'stacked', 'grouped', 'dynamic'])
                 obs['direction'] = random.choice(['left', 'right']) if obs['type'] == 'moving' else None
-                score += 1
+                obs['bounce_direction'] = random.choice(['up', 'down']) if obs['type'] == 'bouncing' else None
+                obs['bounce_count'] = 0
+                score += score_multiplier
+                consecutive_obstacles_avoided += 1
+                if consecutive_obstacles_avoided % 5 == 0:
+                    score_multiplier += 1
                 if score % level_up_score == 0:
                     level += 1
                     obs_vel += obs_speed_increase
