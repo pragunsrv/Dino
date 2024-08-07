@@ -17,6 +17,8 @@ RED = (255, 0, 0)
 GREEN = (0, 255, 0)
 BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
+ORANGE = (255, 165, 0)
+PURPLE = (128, 0, 128)
 
 # Dino settings
 dino_width, dino_height = 50, 50
@@ -35,10 +37,10 @@ dino_animation_speed = 10
 # Obstacle settings
 min_obs_width, min_obs_height = 30, 30
 max_obs_width, max_obs_height = 70, 70
-num_obstacles = 3
+num_obstacles = 4
 obstacles = []
 for i in range(num_obstacles):
-    obs_type = random.choice(['type1', 'type2'])
+    obs_type = random.choice(['type1', 'type2', 'type3'])
     obs_width = random.randint(min_obs_width, max_obs_width)
     obs_height = random.randint(min_obs_height, max_obs_height)
     x_pos = WIDTH + i * 300
@@ -73,7 +75,7 @@ def draw_dino(x, y, frame):
 
 def draw_obstacles(obs_list):
     for obs in obs_list:
-        color = GRAY if obs['type'] == 'type1' else BLUE
+        color = GRAY if obs['type'] == 'type1' else BLUE if obs['type'] == 'type2' else ORANGE
         pygame.draw.rect(screen, color, (obs['x'], obs['y'], obs['width'], obs['height']))
 
 def draw_power_ups(power_up_list):
@@ -82,7 +84,8 @@ def draw_power_ups(power_up_list):
 
 def draw_background():
     global bg1_x, bg2_x, bg3_x, bg4_x
-    screen.fill(WHITE)
+    bg_color = (255 - min(score * 2, 255), 200, 200)  # Change background color based on score
+    screen.fill(bg_color)
     pygame.draw.rect(screen, GREEN, (bg1_x, 0, WIDTH, HEIGHT))
     pygame.draw.rect(screen, GREEN, (bg2_x, 0, WIDTH, HEIGHT))
     pygame.draw.rect(screen, (200, 255, 200), (bg3_x, 0, WIDTH, HEIGHT))
@@ -107,6 +110,10 @@ def draw_score(score):
 def draw_level(level):
     level_text = font.render(f"Level: {level}", True, BLACK)
     screen.blit(level_text, (WIDTH - 100, 10))
+
+def draw_power_up_status(power_up_active):
+    status_text = font.render("Power-Up Active!" if power_up_active else "No Power-Up", True, BLACK)
+    screen.blit(status_text, (WIDTH // 2 - 100, 10))
 
 def game_over():
     screen.fill(WHITE)
@@ -156,7 +163,7 @@ def main():
                 obs['x'] -= obs_vel
             if obs['x'] < 0:
                 obs['x'] = WIDTH
-                obs['type'] = random.choice(['type1', 'type2'])
+                obs['type'] = random.choice(['type1', 'type2', 'type3'])
                 obs['width'] = random.randint(min_obs_width, max_obs_width)
                 obs['height'] = random.randint(min_obs_height, max_obs_height)
                 obs['behavior'] = random.choice(['normal', 'fast'])
@@ -207,6 +214,7 @@ def main():
         draw_power_ups(power_ups)
         draw_score(score)
         draw_level(level)
+        draw_power_up_status(power_up_active)
         pygame.display.update()
 
     pygame.quit()
