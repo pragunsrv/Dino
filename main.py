@@ -14,6 +14,8 @@ WHITE = (255, 255, 255)
 BLACK = (0, 0, 0)
 GRAY = (128, 128, 128)
 RED = (255, 0, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
 
 # Dino settings
 dino_width, dino_height = 50, 50
@@ -25,23 +27,43 @@ jump_count = 10
 # Obstacle settings
 obs_width, obs_height = 50, 50
 num_obstacles = 3
-obstacles = [(WIDTH + i * 300, HEIGHT - obs_height - 10) for i in range(num_obstacles)]
+obstacles = []
+for i in range(num_obstacles):
+    obs_type = random.choice(['type1', 'type2'])
+    x_pos = WIDTH + i * 300
+    obstacles.append({'x': x_pos, 'y': HEIGHT - obs_height - 10, 'type': obs_type})
+
 obs_vel = 15
+obs_speed_increase = 1
+
+# Background settings
+bg_x1 = 0
+bg_x2 = WIDTH
+bg_speed = 5
 
 # Score
 score = 0
 font = pygame.font.Font(None, 36)
 
-# Clock
-clock = pygame.time.Clock()
-FPS = 30
-
 def draw_dino(x, y):
     pygame.draw.rect(screen, BLACK, (x, y, dino_width, dino_height))
 
 def draw_obstacles(obs_list):
-    for (x, y) in obs_list:
-        pygame.draw.rect(screen, GRAY, (x, y, obs_width, obs_height))
+    for obs in obs_list:
+        color = GRAY if obs['type'] == 'type1' else BLUE
+        pygame.draw.rect(screen, color, (obs['x'], obs['y'], obs_width, obs_height))
+
+def draw_background():
+    global bg_x1, bg_x2
+    screen.fill(WHITE)
+    pygame.draw.rect(screen, GREEN, (bg_x1, 0, WIDTH, HEIGHT))
+    pygame.draw.rect(screen, GREEN, (bg_x2, 0, WIDTH, HEIGHT))
+    bg_x1 -= bg_speed
+    bg_x2 -= bg_speed
+    if bg_x1 <= -WIDTH:
+        bg_x1 = WIDTH
+    if bg_x2 <= -WIDTH:
+        bg_x2 = WIDTH
 
 def draw_score(score):
     score_text = font.render(f"Score: {score}", True, BLACK)
@@ -57,7 +79,7 @@ def game_over():
     pygame.time.wait(2000)
 
 def main():
-    global dino_y, jumping, jump_count, obstacles, score
+    global dino_y, jumping, jump_count, obstacles, score, obs_vel, bg_x1, bg_x2
     run = True
     while run:
         clock.tick(FPS)
@@ -80,21 +102,24 @@ def main():
                 jumping = False
                 jump_count = 10
 
-        for i in range(num_obstacles):
-            obstacles[i] = (obstacles[i][0] - obs_vel, obstacles[i][1])
-            if obstacles[i][0] < 0:
-                obstacles[i] = (WIDTH, HEIGHT - obs_height - 10)
+        for obs in obstacles:
+            obs['x'] -= obs_vel
+            if obs['x'] < 0:
+                obs['x'] = WIDTH
+                obs['type'] = random.choice(['type1', 'type2'])
                 score += 1
-        
+                if score % 5 == 0:
+                    obs_vel += obs_speed_increase
+
         # Check for collision
         dino_rect = pygame.Rect(dino_x, dino_y, dino_width, dino_height)
-        for (obs_x, obs_y) in obstacles:
-            obs_rect = pygame.Rect(obs_x, obs_y, obs_width, obs_height)
+        for obs in obstacles:
+            obs_rect = pygame.Rect(obs['x'], obs['y'], obs_width, obs_height)
             if dino_rect.colliderect(obs_rect):
                 game_over()
                 return
 
-        screen.fill(WHITE)
+        draw_background()
         draw_dino(dino_x, dino_y)
         draw_obstacles(obstacles)
         draw_score(score)
