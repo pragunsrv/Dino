@@ -27,6 +27,9 @@ dino_vel = 10
 jumping = False
 jump_count = 10
 invincible = False
+speed_boost_active = False
+speed_boost_duration = 5000  # Speed boost duration in milliseconds
+speed_boost_start_time = 0
 
 # Dino Animation
 dino_images = [pygame.Surface((dino_width, dino_height)) for _ in range(2)]
@@ -38,21 +41,23 @@ dino_animation_speed = 10
 # Obstacle settings
 min_obs_width, min_obs_height = 30, 30
 max_obs_width, max_obs_height = 70, 70
-num_obstacles = 10
+num_obstacles = 12
 obstacles = []
 for i in range(num_obstacles):
-    obs_type = random.choice(['type1', 'type2', 'type3', 'moving', 'bouncing'])
+    obs_type = random.choice(['type1', 'type2', 'type3', 'moving', 'bouncing', 'rotating'])
     obs_width = random.randint(min_obs_width, max_obs_width)
     obs_height = random.randint(min_obs_height, max_obs_height)
     x_pos = WIDTH + i * 300
     pattern_type = random.choice(['single', 'stacked', 'grouped', 'dynamic'])
     obstacles.append({'x': x_pos, 'y': HEIGHT - obs_height - 10, 'type': obs_type, 'behavior': random.choice(['normal', 'fast', 'slow']),
                       'width': obs_width, 'height': obs_height, 'pattern': pattern_type, 'direction': random.choice(['left', 'right']) if obs_type == 'moving' else None,
-                      'bounce_direction': random.choice(['up', 'down']) if obs_type == 'bouncing' else None, 'bounce_count': 0})
+                      'bounce_direction': random.choice(['up', 'down']) if obs_type == 'bouncing' else None, 'bounce_count': 0, 
+                      'rotation_angle': 0 if obs_type == 'rotating' else None, 'rotation_speed': random.randint(1, 5) if obs_type == 'rotating' else None})
 
 obs_vel = 15
 obs_speed_increase = 2
-level_up_score = 10
+level_up_score = 50  # Adjusted to create more levels
+speed_boost_power_up_chance = 0.1  # Chance to get speed boost power-up
 
 # Power-up settings
 power_up_width, power_up_height = 30, 30
@@ -62,7 +67,7 @@ power_up_timer = pygame.time.get_ticks()
 power_up_active = False
 power_up_duration = 5000  # Power-up duration in milliseconds
 power_up_start_time = 0
-power_up_types = ['size_reduction', 'slow_obstacles', 'invincibility']
+power_up_types = ['size_reduction', 'slow_obstacles', 'invincibility', 'speed_boost']
 
 # Background settings
 bg1_x, bg2_x = 0, WIDTH
@@ -81,7 +86,10 @@ def draw_dino(x, y, frame):
 def draw_obstacles(obs_list):
     for obs in obs_list:
         color = GRAY if obs['type'] == 'type1' else BLUE if obs['type'] == 'type2' else ORANGE if obs['type'] == 'type3' else PURPLE
-        pygame.draw.rect(screen, color, (obs['x'], obs['y'], obs['width'], obs['height']))
+        if obs['type'] == 'rotating':
+            pygame.draw.arc(screen, color, (obs['x'], obs['y'], obs['width'], obs['height']), obs['rotation_angle'], obs['rotation_angle'] + 3.14, 5)
+        else:
+            pygame.draw.rect(screen, color, (obs['x'], obs['y'], obs['width'], obs['height']))
 
 def draw_power_ups(power_up_list):
     for (x, y) in power_up_list:
@@ -125,7 +133,7 @@ def game_over():
     pygame.time.wait(2000)
 
 def main():
-    global dino_y, jumping, jump_count, obstacles, score, obs_vel, power_ups, power_up_timer, power_up_active, power_up_start_time, bg1_x, bg2_x, level, dino_frame, invincible, score_multiplier, consecutive_obstacles_avoided
+    global dino_y, jumping, jump_count, obstacles, score, obs_vel, power_ups, power_up_timer, power_up_active, power_up_start_time, bg1_x, bg2_x, level, dino_frame, invincible, speed_boost_active, speed_boost_start_time, score_multiplier, consecutive_obstacles_avoided
     clock = pygame.time.Clock()  # Initialize the clock
     run = True
     while run:
@@ -175,6 +183,10 @@ def main():
                     obs['bounce_count'] -= 1
                     if obs['bounce_count'] < 0:
                         obs['bounce_direction'] = 'up'
+            elif obs['type'] == 'rotating':
+                obs['rotation_angle'] += obs['rotation_speed']
+                if obs['rotation_angle'] >= 6.28:  # Full circle in radians
+                    obs['rotation_angle'] = 0
             else:
                 if obs['behavior'] == 'fast':
                     obs['x'] -= obs_vel * 1.5
@@ -184,7 +196,7 @@ def main():
                     obs['x'] -= obs_vel
             if obs['x'] < 0:
                 obs['x'] = WIDTH
-                obs['type'] = random.choice(['type1', 'type2', 'type3', 'moving', 'bouncing'])
+                obs['type'] = random.choice(['type1', 'type2', 'type3', 'moving', 'bouncing', 'rotating'])
                 obs['width'] = random.randint(min_obs_width, max_obs_width)
                 obs['height'] = random.randint(min_obs_height, max_obs_height)
                 obs['behavior'] = random.choice(['normal', 'fast', 'slow'])
@@ -192,6 +204,8 @@ def main():
                 obs['direction'] = random.choice(['left', 'right']) if obs['type'] == 'moving' else None
                 obs['bounce_direction'] = random.choice(['up', 'down']) if obs['type'] == 'bouncing' else None
                 obs['bounce_count'] = 0
+                obs['rotation_angle'] = 0 if obs['type'] == 'rotating' else None
+                obs['rotation_speed'] = random.randint(1, 5) if obs['type'] == 'rotating' else None
                 score += score_multiplier
                 consecutive_obstacles_avoided += 1
                 if consecutive_obstacles_avoided % 5 == 0:
@@ -212,7 +226,7 @@ def main():
         if not power_up_active and current_time - power_up_timer > power_up_interval:
             power_up_x = WIDTH
             power_up_y = HEIGHT - power_up_height - 10
-            power_up_type = random.choice(power_up_types)
+            power_up_type = random.choices(power_up_types, [0.5, 0.2, 0.2, speed_boost_power_up_chance])[0]
             power_ups.append((power_up_x, power_up_y, power_up_type))
             power_up_timer = current_time
 
@@ -221,6 +235,7 @@ def main():
             obs_vel = 15
             power_ups = []
             invincible = False
+            speed_boost_active = False
 
         new_power_ups = []
         for (x, y, p_type) in power_ups:
@@ -240,6 +255,9 @@ def main():
                     obs_vel *= 0.5
                 elif p_type == 'invincibility':
                     invincible = True
+                elif p_type == 'speed_boost':
+                    speed_boost_active = True
+                    dino_vel *= 1.5
                 power_ups = []
             else:
                 new_power_ups.append((x, y, p_type))
