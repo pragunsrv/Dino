@@ -19,6 +19,7 @@ BLUE = (0, 0, 255)
 YELLOW = (255, 255, 0)
 ORANGE = (255, 165, 0)
 PURPLE = (128, 0, 128)
+CYAN = (0, 255, 255)
 
 # Dino settings
 dino_width, dino_height = 50, 50
@@ -75,8 +76,12 @@ bg1_x, bg2_x = 0, WIDTH
 bg1_speed, bg2_speed = 2, 5
 bg1_image = pygame.Surface((WIDTH, HEIGHT))
 bg2_image = pygame.Surface((WIDTH, HEIGHT))
+cloud_image = pygame.Surface((100, 60))
 bg1_image.fill(GREEN)
 bg2_image.fill(GRAY)
+cloud_image.fill(CYAN)
+
+clouds = [{'x': random.randint(0, WIDTH), 'y': random.randint(0, HEIGHT // 2)} for _ in range(5)]
 
 # Score and Level
 score = 0
@@ -93,6 +98,8 @@ def draw_obstacles(obs_list):
         color = GRAY if obs['type'] == 'type1' else BLUE if obs['type'] == 'type2' else ORANGE if obs['type'] == 'type3' else PURPLE
         if obs['type'] == 'rotating':
             pygame.draw.arc(screen, color, (obs['x'], obs['y'], obs['width'], obs['height']), obs['rotation_angle'], obs['rotation_angle'] + 3.14, 5)
+        elif obs['type'] == 'disappearing' and obs['width'] > 0:
+            pygame.draw.rect(screen, color, (obs['x'], obs['y'], obs['width'], obs['height']))
         else:
             pygame.draw.rect(screen, color, (obs['x'], obs['y'], obs['width'], obs['height']))
 
@@ -104,6 +111,12 @@ def draw_background():
     global bg1_x, bg2_x
     screen.blit(bg1_image, (bg1_x, 0))
     screen.blit(bg2_image, (bg2_x, 0))
+    for cloud in clouds:
+        screen.blit(cloud_image, (cloud['x'], cloud['y']))
+        cloud['x'] -= 1
+        if cloud['x'] < -100:
+            cloud['x'] = WIDTH
+            cloud['y'] = random.randint(0, HEIGHT // 2)
     bg1_x -= bg1_speed
     bg2_x -= bg2_speed
     if bg1_x <= -WIDTH:
